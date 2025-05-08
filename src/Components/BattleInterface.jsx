@@ -1,68 +1,164 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import CodeEditor from "./CodeEditor"; // assuming your existing code editor is in the same directory
+import CodeEditor from "./CodeEditor"; // assuming it's in the same directory
 
 const BattleInterface = () => {
     const [questions, setQuestions] = useState([]);
     const [activeTab, setActiveTab] = useState(0);
-    const [userId] = useState("aa"); // statically set, or replace with actual user ID if needed
+    const [userId, setUserId] = useState("rr4");
+    const [submitted, setSubmitted] = useState(false);
+
+    // Remove defaultSnippets, instead track the boilerplate code fetched from backend
+    const [boilerplateCode, setBoilerplateCode] = useState({
+        Q1: "", Q2: "", Q3: ""
+    });
+
+    const [languageMap, setLanguageMap] = useState({
+        Q1: "java",
+        Q2: "java",
+        Q3: "java"
+    });
+
+    const [codeMap, setCodeMap] = useState({
+        Q1: "", Q2: "", Q3: ""
+    });
 
     useEffect(() => {
-        axios
-            .get(`http://localhost:8000/api/questions/get-questions/${userId}`)
-            .then((res) => setQuestions(res.data.questions))
-            .catch((err) => console.error("Error fetching questions:", err));
+        axios.get(`http://localhost:8000/api/questions/get-questions/${userId}`)
+            .then(res => {
+                setQuestions(res.data.questions);
+
+                const newBoilerplateCode = {};
+                const newCodeMap = {};
+                const newLanguageMap = {};
+
+                res.data.questions.forEach((question, index) => {
+                    const key = `Q${index + 1}`;
+                    newBoilerplateCode[key] = question.boilerplate_code_user;  // 👈 Only show user code
+                    newLanguageMap[key] = "java";
+                    newCodeMap[key] = question.boilerplate_code_user["java"] || "";  // 👈 Not boilerplate_code anymore
+                });
+
+
+                setBoilerplateCode(newBoilerplateCode);
+                setCodeMap(newCodeMap);
+                setLanguageMap(newLanguageMap);
+            })
+            .catch(err => console.error(err));
     }, [userId]);
 
+
+    const handleCodeChange = (tabIndex, code) => {
+        setCodeMap(prev => ({ ...prev, [tabIndex]: code }));
+    };
+
+    const handleSubmit = async () => {
+        const code = codeMap[`Q${activeTab + 1}`];
+        const language = languageMap[`Q${activeTab + 1}`];
+
+        const payload = {
+            user_id: userId,
+            question_id: activeTab, 
+            code: code,
+            language: language,
+        };
+
+
+        try {
+            const res = await axios.post("http://localhost:8000/api/questions/submit-code", payload);
+            console.log("Submission Result:", res.data);
+            console.log("Payload:", payload);
+            setSubmitted(true);
+            alert("Code submitted successfully!");
+        } catch (err) {
+            console.error("Submission Error:", err);
+            alert("Error submitting code. Try again.");
+        }
+    };
+
+
+    const activeQuestion = questions[activeTab];
+
     return (
-        <div style={{ display: "flex", height: "100vh", padding: "20px", gap: "20px" }}>
-            {/* Left: Tabs + Question */}
-            <div style={{ flex: "0 0 40%", borderRight: "1px solid #ccc", paddingRight: "20px" }}>
-                {/* Tabs */}
-                <div style={{ display: "flex", marginBottom: "10px", gap: "10px" }}>
-                    {questions.map((_, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => setActiveTab(idx)}
-                            style={{
-                                padding: "8px 12px",
-                                backgroundColor: activeTab === idx ? "#007bff" : "#f0f0f0",
-                                color: activeTab === idx ? "#fff" : "#000",
-                                border: "none",
-                                borderRadius: "5px",
-                                cursor: "pointer",
-                            }}
-                        >
-                            Q{idx + 1}
-                        </button>
-                    ))}
-                </div>
+        <div style={{ padding: "20px" }}>
+            <h2>Welcome, {userId}</h2>
 
-                {/* Question Content */}
-                {questions.length > 0 && (
-                    <div>
-                        <h2 style={{ marginBottom: "10px" }}>
-                            Q{activeTab + 1}: {questions[activeTab].question}
-                        </h2>
+            <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+                {questions.map((_, index) => (
+                    <button
+                        key={index}
+                        onClick={() => setActiveTab(index)}
+                        style={{
+                            padding: "10px",
+                            fontWeight: activeTab === index ? "bold" : "normal",
+                            backgroundColor: activeTab === index ? "#d0d0ff" : "#eee",
+                            borderRadius: "5px"
+                        }}
+                    >
+                        Q{index + 1}
+                    </button>
+                ))}
+            </div>
 
-                        <h3 style={{ marginTop: "20px" }}>Sample Test Cases</h3>
-                        <ul style={{ paddingLeft: "20px" }}>
-                            {questions[activeTab].test_cases.slice(0, 2).map((tc, i) => (
-                                <li key={i} style={{ marginBottom: "10px" }}>
-                                    <strong>Input:</strong> {tc.input}
-                                    <br />
-                                    <strong>Expected Output:</strong> {tc.output}
-                                </li>
-                            ))}
-                        </ul>
+            {activeQuestion && (
+                <div>
+                    <h3>Q{activeTab + 1}: {activeQuestion.question}</h3>
+                    <pre>Sample Test Case 1: {activeQuestion.test_cases[0].input} → {activeQuestion.test_cases[0].output}</pre>
+                    <pre>Sample Test Case 2: {activeQuestion.test_cases[1].input} → {activeQuestion.test_cases[1].output}</pre>
+
+                    <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "15px" }}>
+
+                        <label>
+                            Language:
+                            <select
+                                value={languageMap[`Q${activeTab + 1}`]}
+                                onChange={(e) => {
+                                    const selectedLang = e.target.value;
+                                    const key = `Q${activeTab + 1}`;
+
+                                    setLanguageMap(prev => ({ ...prev, [key]: selectedLang }));
+
+                                    setCodeMap(prev => ({
+                                        ...prev,
+                                        [key]: boilerplateCode[key][selectedLang] || ""
+                                    }));
+
+
+                                    // Update code editor content with new boilerplate
+                                    setCodeMap(prev => ({
+                                        ...prev,
+                                        [key]: boilerplateCode[key][selectedLang] || ""
+                                    }));
+                                }}
+                                style={{ marginLeft: "8px", padding: "5px" }}
+                            >
+                                <option value="java">Java</option>
+                                <option value="python">Python</option>
+                                <option value="c++">C++</option>
+                            </select>
+
+                        </label>
+
                     </div>
-                )}
-            </div>
 
-            {/* Right: Code Editor */}
-            <div style={{ flex: "0 0 60%", paddingLeft: "20px" }}>
-                <CodeEditor />
-            </div>
+                    <CodeEditor
+                        code={codeMap[`Q${activeTab + 1}`]}
+                        onChange={(code) => handleCodeChange(`Q${activeTab + 1}`, code)}
+                        language={languageMap[`Q${activeTab + 1}`]}
+                    />
+
+
+
+                    <div style={{ textAlign: "center", marginTop: "20px" }}>
+                        <button
+                            onClick={handleSubmit}
+                            style={{ padding: "10px 30px", fontWeight: "bold", backgroundColor: "#28a745", color: "#fff", border: "none", borderRadius: "6px" }}
+                        >
+                            ✅ Submit
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
