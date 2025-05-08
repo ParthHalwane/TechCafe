@@ -2,7 +2,7 @@
 import { useEffect,useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaGithub, FaTwitter, FaDiscord, FaLinkedin } from 'react-icons/fa';
-
+import { Navigate } from 'react-router-dom';
 
 const imageData = [
     {
@@ -105,20 +105,7 @@ export default function HomePage() {
   }, []);
   return (
     <div className="bg-[#1e1b18] text-white font-sans scroll-smooth">
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-6 py-4 bg-[#2d2a26] shadow-xl">
-        <a href="#" className="text-3xl font-bold text-pink-300 hover:scale-105 transition">TechCafé</a>
-        <div className="space-x-6 hidden md:flex">
-          <a href="#techcafe-rooms" className="hover:text-pink-400 transition">Rooms</a>
-          <a href="#hackarena" className="hover:text-pink-400 transition">HackArena</a>
-          <a href="#startup-pods" className="hover:text-pink-400 transition">Pods</a>
-          <a href="#devs" className="hover:text-pink-400 transition">Devs</a>
-          <a href="#contact" className="hover:text-pink-400 transition">Contact</a>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-400 transition-all">
-          <FaGithub className="text-xl" /> Sign in with GitHub
-        </button>
-      </nav>
+     
 
       {/* Hero Section */}
       <section className="text-center py-25 px-8 relative">
@@ -434,47 +421,7 @@ export default function HomePage() {
   </motion.form>
 </section>
 
-      {/* Footer */}
-      <footer className="bg-[#1e1a17] text-white py-12 px-6 md:px-20">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10">
-          <div>
-            <h1 className="text-3xl font-bold text-pink-400 mb-2">TechCafé ☕</h1>
-            <p className="text-sm text-white/70 leading-relaxed">
-              A place to chill, collaborate, and create magic in tech.
-            </p>
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold mb-4 text-pink-300">Explore</h2>
-            <ul className="space-y-2 text-sm text-white/80">
-              <li><a href="#" className="hover:text-pink-400 transition">Home</a></li>
-              <li><a href="#techcafe-rooms" className="hover:text-pink-400 transition">Rooms</a></li>
-              <li><a href="#hackarena" className="hover:text-pink-400 transition">HackArena</a></li>
-              <li><a href="#startup-pods" className="hover:text-pink-400 transition">Startup Pods</a></li>
-              <li><a href="#devs" className="hover:text-pink-400 transition">Devs</a></li>
-              <li><a href="#contact" className="hover:text-pink-400 transition">Contact</a></li>
-            </ul>
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold mb-4 text-pink-300">Connect</h2>
-            <div className="flex space-x-4 text-xl">
-              <a href="https://github.com" target="_blank" className="hover:text-pink-400"><FaGithub /></a>
-              <a href="https://twitter.com" target="_blank" className="hover:text-pink-400"><FaTwitter /></a>
-              <a href="https://discord.gg" target="_blank" className="hover:text-pink-400"><FaDiscord /></a>
-              <a href="https://linkedin.com" target="_blank" className="hover:text-pink-400"><FaLinkedin /></a>
-            </div>
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold mb-4 text-pink-300">Subscribe</h2>
-            <form className="flex flex-col space-y-3">
-              <input type="email" placeholder="Your email" className="bg-[#2a2421] text-white px-4 py-2 rounded-lg focus:outline-none" />
-              <button className="bg-pink-400 hover:bg-pink-500 text-white py-2 px-4 rounded-lg transition">Subscribe</button>
-            </form>
-          </div>
-        </div>
-        <div className="mt-12 border-t border-white/10 pt-6 text-sm text-center text-white/60">
-          <p>© {new Date().getFullYear()} TechCafé. Built with 💻 + ☕ by passionate devs.</p>
-        </div>
-      </footer>
+     
     </div>
   );
 }
