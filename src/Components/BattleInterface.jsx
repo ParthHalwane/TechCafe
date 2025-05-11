@@ -1,11 +1,23 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import CodeEditor from "./CodeEditor"; // assuming it's in the same directory
+import CodeEditor from "./CodeEditor"; 
+import BattleEndPopup from "./BattleEndPopup"; 
+
 
 const BattleInterface = () => {
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setChallengeOver(true);
+        }, 15 * 60 * 1000); // 15 minutes
+
+        return () => clearTimeout(timer); // cleanup
+    }, []);
+
+
     const [questions, setQuestions] = useState([]);
     const [activeTab, setActiveTab] = useState(0);
-    const [userId, setUserId] = useState("rr4");
+    const [userId, setUserId] = useState("derty");
     const [submitted, setSubmitted] = useState(false);
 
     // Remove defaultSnippets, instead track the boilerplate code fetched from backend
@@ -23,9 +35,11 @@ const BattleInterface = () => {
         Q1: "", Q2: "", Q3: ""
     });
 
+    const [roomId, setRoomId] = useState("");
+
     useEffect(() => {
         axios.get(`http://localhost:8000/api/questions/get-questions/${userId}`)
-            .then(res => {
+            .then(async (res) => {
                 setQuestions(res.data.questions);
 
                 const newBoilerplateCode = {};
@@ -34,15 +48,18 @@ const BattleInterface = () => {
 
                 res.data.questions.forEach((question, index) => {
                     const key = `Q${index + 1}`;
-                    newBoilerplateCode[key] = question.boilerplate_code_user;  // 👈 Only show user code
+                    newBoilerplateCode[key] = question.boilerplate_code_user;
                     newLanguageMap[key] = "java";
-                    newCodeMap[key] = question.boilerplate_code_user["java"] || "";  // 👈 Not boilerplate_code anymore
+                    newCodeMap[key] = question.boilerplate_code_user["java"] || "";
                 });
-
 
                 setBoilerplateCode(newBoilerplateCode);
                 setCodeMap(newCodeMap);
                 setLanguageMap(newLanguageMap);
+
+                // 👇 Fetch room_id
+                const roomRes = await axios.get(`http://localhost:8000/api/get-room/${userId}`);
+                setRoomId(roomRes.data.room_id);
             })
             .catch(err => console.error(err));
     }, [userId]);
@@ -58,6 +75,7 @@ const BattleInterface = () => {
 
         const payload = {
             user_id: userId,
+            room_id: roomId,
             question_id: activeTab, 
             code: code,
             language: language,
@@ -70,6 +88,13 @@ const BattleInterface = () => {
             console.log("Payload:", payload);
             setSubmitted(true);
             alert("Code submitted successfully!");
+            if (res.data.all_test_cases_passed) {
+                setSolvedMap(prev => ({
+                    ...prev,
+                    [activeTab]: true,
+                }));
+            }
+
         } catch (err) {
             console.error("Submission Error:", err);
             alert("Error submitting code. Try again.");
@@ -78,6 +103,64 @@ const BattleInterface = () => {
 
 
     const activeQuestion = questions[activeTab];
+
+    // const [roomId, setRoomId] = useState("");
+
+    useEffect(() => {
+        axios.get(`http://localhost:8000/api/get-room/${userId}`)
+            .then(res => {
+                setRoomId(res.data.room_id);  // Add a useState for roomId
+            })
+            .catch(err => {
+                console.error("Error fetching room ID:", err);
+            });
+    }, [userId]);
+
+    const [challengeEnded, setChallengeEnded] = useState(false);
+    const [countdown, setCountdown] = useState(20);
+
+    useEffect(() => {
+        let timer;
+        if (challengeEnded && countdown > 0) {
+            timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
+        } else if (challengeEnded && countdown === 0) {
+            triggerNewChallenge();
+        }
+        return () => clearTimeout(timer);
+    }, [challengeEnded, countdown]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setChallengeEnded(true);
+        }, 15 * 60 * 1000); // 15 minutes
+        return () => clearTimeout(timer);
+    }, []);
+
+
+    const triggerNewChallenge = async () => {
+        try {
+            await axios.post(`http://localhost:8000/api/generate_questions/${roomId}`);
+            setChallengeEnded(false);
+            setCountdown(20);
+            window.location.reload(); // or refetch questions programmatically
+        } catch (err) {
+            console.error("Failed to generate new questions", err);
+        }
+    };
+
+    const [challengeOver, setChallengeOver] = useState(false);
+    const [solvedMap, setSolvedMap] = useState({ 0: false, 1: false, 2: false });
+    // const [challengeOver, setChallengeOver] = useState(false);
+
+
+    useEffect(() => {
+        const allSolved = Object.values(solvedMap).every(Boolean);
+        if (allSolved) {
+            setChallengeOver(true);
+        }
+    }, [solvedMap]);
+
+
 
     return (
         <div style={{ padding: "20px" }}>
@@ -159,7 +242,50 @@ const BattleInterface = () => {
                     </div>
                 </div>
             )}
+
+            {challengeEnded && (
+                <div style={{
+                    position: 'fixed',
+                    top: '30%',
+                    left: '50%',
+                    transform: 'translate(-50%, -30%)',
+                    padding: '30px',
+                    background: 'white',
+                    boxShadow: '0 0 15px rgba(0,0,0,0.3)',
+                    borderRadius: '10px',
+                    textAlign: 'center',
+                    zIndex: 999
+                }}>
+                    <h3>Challenge ended!</h3>
+                    <p>New game starting in {countdown} seconds</p>
+                    <button onClick={() => {
+                        // Shuffle logic here
+                        console.log("User chose to shuffle");
+                    }} style={{ marginRight: "10px" }}>🔀 Shuffle</button>
+                    <button onClick={() => {
+                        // Leave logic here
+                        console.log("User chose to leave");
+                    }}>❌ Leave Room</button>
+                </div>
+            )}
+
+            {challengeOver && (
+                <BattleEndPopup
+                    roomId={roomId}
+                    onReshuffle={() => {
+                        // user clicks reshuffle — optional behavior here
+                        console.log("User clicked reshuffle");
+                    }}
+                    onLeave={() => {
+                        window.location.href = "/";
+                    }}
+                />
+            )}
+
+
         </div>
+
+        
     );
 };
 
