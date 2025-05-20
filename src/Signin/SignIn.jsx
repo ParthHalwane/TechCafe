@@ -15,7 +15,7 @@ const SignIn = () => {
   // Check if token is valid on mount
   useEffect(() => {
     console.log("Loading");
-    fetch("http://127.0.0.1:8000/test-cors", {
+    fetch(`${backendURL}/test-cors`, {
       credentials: "include",
     })
       .then((res) => res.json())
