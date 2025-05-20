@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useState } from "react";
-import MatchmakingLobby from "../components/Meet Components/MatchmakingLobby";
+import MatchmakingLobby from "./Meet_Components/MatchmakingLobby";
 import { useSelector } from "react-redux";
 export default function Room() {
   const navigate = useNavigate();
