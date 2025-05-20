@@ -20,7 +20,7 @@ export default function Room() {
     try {
       // 1. Enqueue the user
       console.log("Sending req to join queue");
-      const res = await axios.post(`http://${backendURL}/api/matchmaking/join-queue`, {
+      const res = await axios.post(`${backendURL}/api/matchmaking/join-queue`, {
         domain: "coding",
         user_id: user.github_id,
                  // domain selected

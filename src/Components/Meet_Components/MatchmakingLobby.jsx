@@ -22,7 +22,7 @@ export default function MatchmakingLobby() {
 
     // Listen for room assignment via SSE
     const eventSource = new EventSource(
-      `http://${backendURL}/api/queue/join?user_id=${userId.github_id}`
+      `${backendURL}/api/queue/join?user_id=${userId.github_id}`
     );
 
     eventSource.onmessage = (e) => {
