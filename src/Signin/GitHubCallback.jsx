@@ -15,7 +15,7 @@ const GitHubCallback = () => {
     const fetchToken = async () => {
       try {
         console.log("Into fetch token");
-        axios.post("http://localhost:8000/api/auth/github/token", {
+        axios.post(`${backendURL}/api/auth/github/token`, {
           code: code,
         }, {
           withCredentials: true,
