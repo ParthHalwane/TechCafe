@@ -80,6 +80,7 @@ const devs = [
 ];
 
 export default function HomePage() {
+    
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {

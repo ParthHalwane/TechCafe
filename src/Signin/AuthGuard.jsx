@@ -1,10 +1,11 @@
 // src/components/AuthGuard.jsx
 import { Navigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 export default function AuthGuard({ children }) {
-  const isLoggedIn = !!localStorage.getItem("techcafe_user"); // Adjust this based on your auth logic
+  const user = useSelector((state) => state.user.currentUser);
 
-  if (!isLoggedIn) {
+  if (!user || !user.github_id) {
     return <Navigate to="/signin" replace />;
   }
 
