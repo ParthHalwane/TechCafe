@@ -15,6 +15,7 @@
     "ace-builds": "^1.41.0",
     "axios": "^1.9.0",
     "framer-motion": "^12.9.4",
+    "motion": "^12.10.4",
     "react": "^19.0.0",
     "react-ace": "^14.0.1",
     "react-dom": "^19.0.0",
