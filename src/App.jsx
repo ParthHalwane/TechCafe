@@ -9,12 +9,12 @@ import OAuthCallback from "./Signin/GitHubCallback.jsx";
 import Layout from "./Layout";
 import AuthGuard from "./Signin/AuthGuard.jsx"
 import Room from "./Components/Room.jsx";
-import MeetingRoom from "./Components/Meet Components/MeetingRoom.jsx";
+import MeetingRoom from "./Components/Meet_Components/MeetingRoom.jsx";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { setUser } from "./store/userSlice";
 import axios from "axios";
-import MatchmakingLobby from "./components/Meet Components/MatchmakingLobby.jsx";
+import MatchmakingLobby from "./Components/Meet_Components/MatchmakingLobby.jsx";
 
 function App() {
   const backendURL = import.meta.env.VITE_BACKEND_URL;
