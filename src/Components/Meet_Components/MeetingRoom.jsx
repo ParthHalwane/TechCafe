@@ -16,7 +16,7 @@ export default function MeetingRoom() {
     const handleRemoveUser = async () => {
       if (!userId) return;
       try {
-        await fetch(`http://${backendURL}/api/room/remove-user`, {
+        await fetch(`${backendURL}/api/room/remove-user`, {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
