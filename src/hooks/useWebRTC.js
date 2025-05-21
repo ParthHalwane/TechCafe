@@ -7,208 +7,186 @@ export default function useWebRTC(roomId) {
   const localMediaStream = useRef(null);
   const ws = useRef(null);
   const [ownPeerID, setOwnPeerID] = useState(null);
-  const backendURL = import.meta.env.VITE_BACKEND_URL;
 
   const addNewClient = useCallback((clientID) => {
-    setClients((prev) =>
-      prev.includes(clientID) ? prev : [...prev, clientID]
-    );
+    setClients((prev) => {
+      if (!prev.includes(clientID)) {
+        console.log(`[WebRTC] Adding new client: ${clientID}`);
+        return [...prev, clientID];
+      }
+      return prev;
+    });
   }, []);
 
+  const backendURL = import.meta.env.VITE_BACKEND_URL;
+
   useEffect(() => {
-    const testWebSocketConnection = () => {
-        const wsTestURL = `wss://${backendURL.replace(/^https?:\/\//, "")}/ws/room/${roomId}/`;
-        console.log("[TEST] Connecting to test WebSocket:", wsTestURL);
+    const startCapture = async () => {
+      console.log("[WebRTC] Starting media capture...");
+      try {
+        localMediaStream.current = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: true,
+        });
+        addNewClient("You");
+        console.log("[WebRTC] Media capture success.");
+      } catch (error) {
+        console.error("[WebRTC] Failed to access media devices:", error);
+        alert("Please allow camera and microphone access.");
+        return;
+      }
 
-        const testWS = new WebSocket(wsTestURL);
+      const wsURL = `wss://${backendURL.replace(/^https?:\/\//, "")}/ws/room/${roomId}`;
+      console.log("[WebRTC] Connecting WebSocket to:", wsURL);
 
-        testWS.onopen = () => {
-          console.log("[TEST] WebSocket connection opened.");
-          testWS.send(JSON.stringify({ action: "join", room_id: roomId }));
-        };
+      ws.current = new WebSocket(wsURL);
 
-        testWS.onmessage = (event) => {
-          console.log("[TEST] Message from server:", event.data);
-        };
-
-        testWS.onerror = (err) => {
-          console.error("[TEST] WebSocket error:", err);
-        };
-
-        testWS.onclose = (e) => {
-          console.warn("[TEST] WebSocket closed:", e);
-        };
+      ws.current.onopen = () => {
+        console.log("[WebRTC] WebSocket connection opened");
+        ws.current.send(JSON.stringify({ action: "join", room_id: roomId }));
       };
-    testWebSocketConnection(); // TEMP: Check WS Connection
 
-    // const startCapture = async () => {
-    //   console.log("[WebRTC] Starting media capture...");
-    //   try {
-    //     localMediaStream.current = await navigator.mediaDevices.getUserMedia({
-    //       audio: true,
-    //       video: true,
-    //     });
-    //     addNewClient("You");
-    //     console.log("[WebRTC] Media capture successful.");
-    //   } catch (err) {
-    //     console.error("[WebRTC] Media device error:", err);
-    //     alert("Please allow camera and microphone access.");
-    //     return;
-    //   }
+      ws.current.onerror = (error) => {
+        console.error("[WebRTC] WebSocket error:", error);
+      };
 
-    //   const wsURL = `wss://${backendURL.replace(/^https?:\/\//, "")}/ws/room/${roomId}/`;
-    //   console.log("[WebRTC] Connecting to WebSocket:", wsURL);
+      ws.current.onclose = (event) => {
+        console.log("[WebRTC] WebSocket closed:", event);
+      };
 
-    //   ws.current = new WebSocket(wsURL);
+      ws.current.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+        console.log("[WebRTC] Received WS message:", data);
 
-    //   ws.current.onopen = () => {
-    //     console.log("[WebRTC] WebSocket connection opened.");
-    //     ws.current.send(JSON.stringify({ action: "join", room_id: roomId }));
-    //   };
+        const { action, peerID, createOffer, sessionDescription, iceCandidate } = data;
 
-    //   ws.current.onmessage = async ({ data }) => {
-    //     const msg = JSON.parse(data);
-    //     const { action, peerID, createOffer, sessionDescription, iceCandidate } = msg;
-    //     console.log("[WebRTC] WS Message:", msg);
+        switch (action) {
+          case "add-peer": {
+            if (peerID === ownPeerID) {
+              console.log("[WebRTC] Ignoring own add-peer action");
+              return;
+            }
+            if (peerConnections.current[peerID]) {
+              console.log(`[WebRTC] Already connected to peer ${peerID}`);
+              return;
+            }
 
-    //     switch (action) {
-    //       case "assign-peer-id": {
-    //         setOwnPeerID(peerID);
-    //         console.log(`[WebRTC] Assigned own peer ID: ${peerID}`);
-    //         break;
-    //       }
+            console.log(`[WebRTC] Adding peer connection for ${peerID}`);
+            const pc = new RTCPeerConnection();
+            peerConnections.current[peerID] = pc;
 
-    //       case "add-peer": {
-    //         if (peerID === ownPeerID) return;
-    //         if (peerConnections.current[peerID]) {
-    //           console.log(`[WebRTC] Peer ${peerID} already connected.`);
-    //           return;
-    //         }
+            localMediaStream.current.getTracks().forEach((track) => {
+              pc.addTrack(track, localMediaStream.current);
+            });
 
-    //         console.log(`[WebRTC] Adding new peer: ${peerID}`);
-    //         const newPC = new RTCPeerConnection();
+            pc.ontrack = ({ streams: [remoteStream] }) => {
+              console.log(`[WebRTC] Received remote stream from ${peerID}`);
+              addNewClient(peerID);
 
-    //         peerConnections.current[peerID] = newPC;
+              if (mediaElements.current[peerID]) {
+                mediaElements.current[peerID].srcObject = remoteStream;
+              } else {
+                const interval = setInterval(() => {
+                  if (mediaElements.current[peerID]) {
+                    mediaElements.current[peerID].srcObject = remoteStream;
+                    clearInterval(interval);
+                  }
+                }, 500);
+              }
+            };
 
-    //         localMediaStream.current.getTracks().forEach((track) => {
-    //           newPC.addTrack(track, localMediaStream.current);
-    //         });
+            pc.onicecandidate = (e) => {
+              if (e.candidate) {
+                console.log(`[WebRTC] Sending ICE candidate to ${peerID}`);
+                ws.current.send(
+                  JSON.stringify({
+                    action: "relay-ice",
+                    peerID,
+                    iceCandidate: e.candidate,
+                  })
+                );
+              }
+            };
 
-    //         newPC.onicecandidate = (e) => {
-    //           if (e.candidate) {
-    //             console.log(`[WebRTC] Sending ICE candidate to ${peerID}`);
-    //             ws.current.send(
-    //               JSON.stringify({
-    //                 action: "relay-ice",
-    //                 peerID,
-    //                 iceCandidate: e.candidate,
-    //               })
-    //             );
-    //           }
-    //         };
+            if (createOffer) {
+              console.log(`[WebRTC] Creating offer for ${peerID}`);
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              ws.current.send(
+                JSON.stringify({
+                  action: "relay-sdp",
+                  peerID,
+                  sessionDescription: offer,
+                })
+              );
+            }
+            break;
+          }
 
-    //         newPC.ontrack = ({ streams: [remoteStream] }) => {
-    //           console.log(`[WebRTC] Received remote stream from ${peerID}`);
-    //           addNewClient(peerID);
+          case "session-description": {
+            console.log(`[WebRTC] Received session description from ${peerID}`);
+            const pc = peerConnections.current[peerID];
+            await pc.setRemoteDescription(new RTCSessionDescription(sessionDescription));
 
-    //           const attachStream = () => {
-    //             const videoEl = mediaElements.current[peerID];
-    //             if (videoEl) {
-    //               videoEl.srcObject = remoteStream;
-    //             } else {
-    //               setTimeout(attachStream, 300);
-    //             }
-    //           };
-    //           attachStream();
-    //         };
+            if (sessionDescription.type === "offer") {
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              console.log(`[WebRTC] Sending answer to ${peerID}`);
+              ws.current.send(
+                JSON.stringify({
+                  action: "relay-sdp",
+                  peerID,
+                  sessionDescription: answer,
+                })
+              );
+            }
+            break;
+          }
 
-    //         if (createOffer) {
-    //           console.log(`[WebRTC] Creating offer for ${peerID}`);
-    //           const offer = await newPC.createOffer();
-    //           await newPC.setLocalDescription(offer);
-    //           ws.current.send(
-    //             JSON.stringify({
-    //               action: "relay-sdp",
-    //               peerID,
-    //               sessionDescription: offer,
-    //             })
-    //           );
-    //         }
+          case "ice-candidate": {
+            console.log(`[WebRTC] Adding ICE candidate from ${peerID}`);
+            const pc = peerConnections.current[peerID];
+            if (pc) {
+              await pc.addIceCandidate(new RTCIceCandidate(iceCandidate));
+            }
+            break;
+          }
 
-    //         break;
-    //       }
+          case "remove-peer": {
+            console.log(`[WebRTC] Removing peer ${peerID}`);
+            if (peerConnections.current[peerID]) {
+              peerConnections.current[peerID].close();
+            }
+            delete peerConnections.current[peerID];
+            delete mediaElements.current[peerID];
+            setClients((prev) => prev.filter((c) => c !== peerID));
+            break;
+          }
 
-    //       case "session-description": {
-    //         const existingPC = peerConnections.current[peerID];
-    //         if (!existingPC) {
-    //           console.warn(`[WebRTC] No connection for peer ${peerID}`);
-    //           return;
-    //         }
+          case "assign-peer-id": {
+            console.log(`[WebRTC] Assigned own peer ID: ${peerID}`);
+            setOwnPeerID(peerID);
+            break;
+          }
 
-    //         console.log(`[WebRTC] Received SDP from ${peerID}`);
-    //         await existingPC.setRemoteDescription(new RTCSessionDescription(sessionDescription));
+          default:
+            console.warn(`[WebRTC] Unknown action: ${action}`);
+        }
+      };
+    };
 
-    //         if (sessionDescription.type === "offer") {
-    //           const answer = await existingPC.createAnswer();
-    //           await existingPC.setLocalDescription(answer);
-    //           ws.current.send(
-    //             JSON.stringify({
-    //               action: "relay-sdp",
-    //               peerID,
-    //               sessionDescription: answer,
-    //             })
-    //           );
-    //         }
+    startCapture();
 
-    //         break;
-    //       }
-
-    //       case "ice-candidate": {
-    //         const conn = peerConnections.current[peerID];
-    //         if (conn) {
-    //           console.log(`[WebRTC] Adding ICE candidate from ${peerID}`);
-    //           await conn.addIceCandidate(new RTCIceCandidate(iceCandidate));
-    //         } else {
-    //           console.warn(`[WebRTC] No connection to add ICE candidate for ${peerID}`);
-    //         }
-    //         break;
-    //       }
-
-    //       case "remove-peer": {
-    //         console.log(`[WebRTC] Removing peer ${peerID}`);
-    //         if (peerConnections.current[peerID]) {
-    //           peerConnections.current[peerID].close();
-    //           delete peerConnections.current[peerID];
-    //         }
-    //         delete mediaElements.current[peerID];
-    //         setClients((prev) => prev.filter((id) => id !== peerID));
-    //         break;
-    //       }
-
-    //       default:
-    //         console.warn(`[WebRTC] Unknown WS action: ${action}`);
-    //         break;
-    //     }
-    //   };
-    // };
-
-    // startCapture();
-
-    // return () => {
-    //   console.log("[WebRTC] Cleaning up...");
-    //   if (localMediaStream.current) {
-    //     localMediaStream.current.getTracks().forEach((track) => track.stop());
-    //   }
-
-    //   if (ws.current) {
-    //     ws.current.close();
-    //   }
-
-    //   Object.values(peerConnections.current).forEach((pc) => pc.close());
-    //   peerConnections.current = {};
-    //   mediaElements.current = {};
-    //   setClients([]);
-    // };
+    return () => {
+      console.log("[WebRTC] Cleaning up...");
+      if (localMediaStream.current) {
+        localMediaStream.current.getTracks().forEach((track) => track.stop());
+      }
+      if (ws.current) {
+        ws.current.close();
+      }
+      Object.values(peerConnections.current).forEach((pc) => pc.close());
+    };
   }, [roomId, addNewClient]);
 
   const provideMediaRef = (clientID, node) => {
