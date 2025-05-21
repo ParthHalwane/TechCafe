@@ -27,8 +27,8 @@ export default function useWebRTC(roomId) {
       }
 
       // ✅ Connect to Django Channels WebSocket
-      ws.current = new WebSocket(`ws://${backendURL}/api/ws/room/${roomId}/`);
-
+      ws.current =  new WebSocket(`wss://${backendURL.replace(/^https?:\/\//, '')}/ws/room/${roomId}`);
+     
       ws.current.onopen = () => {
         ws.current.send(JSON.stringify({ action: "join", room_id: roomId }));
       };
