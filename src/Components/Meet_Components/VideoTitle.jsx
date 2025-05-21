@@ -6,11 +6,12 @@ export default function VideoTile({ clientID, provideMediaRef }) {
   const videoRef = useRef(null);
   
   useEffect(() => {
-    if (videoRef.current) {
-      provideMediaRef(clientID, videoRef.current);
-      console.log(`[VideoTile] Media ref set for ${clientID}`);
-    }
-  }, [clientID, provideMediaRef]);
+  if (videoRef.current) {
+    provideMediaRef(clientID, videoRef.current);
+    console.log(`[VideoTile] Media ref assigned for ${clientID}`);
+  }
+}, [clientID, provideMediaRef]);
+
 
   return (
     <motion.div
