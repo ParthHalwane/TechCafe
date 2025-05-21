@@ -123,7 +123,7 @@ export default function useWebRTC(roomId) {
             break;
           }
 
-          case "session-description": {
+          case "relay-sdp": {
             console.log(`[WebRTC] Received session description from ${peerID}`);
             const pc = peerConnections.current[peerID];
             await pc.setRemoteDescription(new RTCSessionDescription(sessionDescription));
@@ -143,7 +143,7 @@ export default function useWebRTC(roomId) {
             break;
           }
 
-          case "ice-candidate": {
+          case "relay-ice": {
             console.log(`[WebRTC] Adding ICE candidate from ${peerID}`);
             const pc = peerConnections.current[peerID];
             if (pc) {
