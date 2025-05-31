@@ -108,4 +108,5 @@ DATABASE_URL=<YOUR_MONGODB_CLUSTER_URL>
 
 ## 🧑‍💻 Authors
 Built with passion by [Parth Halwane](https://github.com/parthhalwane) & [Lokesh Kad](https://github.com/lokesh-6)
+
 Drop a ⭐ if you like it, contributions welcome!
